@@ -1,0 +1,8 @@
+name: TreasureHunter
+version: '1.0-SNAPSHOT'
+main: plugin.treasureHunter.Main
+api-version: '1.21'
+commands:
+  treasureHunter:
+  back:
+  spawnBlock:
