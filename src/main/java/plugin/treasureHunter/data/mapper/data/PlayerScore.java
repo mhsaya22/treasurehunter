@@ -24,7 +24,7 @@ public class PlayerScore {
   private LocalDateTime registeredAt;
 
   public PlayerScore(String playerName, int score, String difficulty){
-  this.playerName = playerName;;
+  this.playerName = playerName;
   this.score = score;
   this.difficulty = difficulty;
   }
