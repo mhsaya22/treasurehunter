@@ -16,6 +16,8 @@ import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -200,15 +202,15 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
       if (gameSession.getTimeLeft() <= 0){
         Runnable.cancel();
 
-        endGame(player, nowExecutingPlayer, difficulty);
+        endGame(player, nowExecutingPlayer, difficulty,gameSession);
 
         player.getInventory().setItemInMainHand(gameSession.getOriginalItem());
         return;
       }
       for (int i = 0; i < 3; i++){
         Block spawnOre = player.getWorld().getBlockAt(getOreLocation(player));
-        if (replacedBlocksList.stream().noneMatch(data -> data.getBlock().equals(spawnOre))){
-          replacedBlocksList.add(new ReplacedBlocksData(spawnOre));
+        if (gameSession.getReplacedBlocksList().stream().noneMatch(data -> data.getBlock().equals(spawnOre))){
+          gameSession.getReplacedBlocksList().add(new ReplacedBlocksData(spawnOre));
         }
         spawnOre.setType(getOre(difficulty));
       }
@@ -267,24 +269,30 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
    */
   private Location getOreLocation(Player player) {
     Location playerLocation = player.getLocation();
-    int randomX = new SplittableRandom().nextInt(15) -5;
-    int randomY = new SplittableRandom().nextInt(8) -2;
-    int randomZ = new SplittableRandom().nextInt(15) -5;
+    SplittableRandom random = new SplittableRandom();
 
-    int blockX = playerLocation.getBlockX() + randomX;
-    int blockY = playerLocation.getBlockY() + randomY;
-    int blockZ = playerLocation.getBlockZ() + randomZ;
+    for (int i = 0; i < 15; i++) {
+      int blockX = random.nextInt(11) - 5;
+      int blockY = random.nextInt(3) - 1;
+      int blockZ = random.nextInt(11) - 5;
 
-    Location targetLocation = new Location(player.getWorld(),blockX,blockY,blockZ);
-    Block targetBlock = targetLocation.getBlock();
+      int x = playerLocation.getBlockX() + blockX;
+      int y = playerLocation.getBlockY() + blockY;
+      int z = playerLocation.getBlockZ() + blockZ;
 
-    boolean hasAirAround = Arrays.stream(BlockFace.values())
-        .filter(blockFace -> blockFace != BlockFace.SELF)
-        .anyMatch(blockFace -> targetBlock.getRelative(blockFace).getType() == Material.AIR);
-    if (!hasAirAround || targetBlock.getType().name().toLowerCase().contains("wood")) {
-      return player.getLocation();
+      Location targetLoc = new Location(player.getWorld(), x, y, z);
+      Block targetBlock = targetLoc.getBlock();
+      Block groundBlock = targetBlock.getRelative(BlockFace.DOWN);
+      Block airBlock = targetBlock.getRelative(BlockFace.UP);
+
+      if (targetBlock.getType().isSolid() && airBlock.getType().isAir()) {
+        return targetLoc;
+      }
+      if (targetBlock.getType().isAir() && groundBlock.getType().isSolid()) {
+        return targetLoc;
+      }
     }
-    return targetLocation;
+    return playerLocation;
   }
 
   /**
@@ -306,7 +314,7 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
    * @param difficulty 難易度
    */
   private void endGame(Player player, ExecutingPlayer nowExecutingPlayer,
-      GameDifficulty difficulty) {
+      GameDifficulty difficulty,GameSession gameSession) {
     //スコアボードの非表示
     ScoreboardManager manager = Bukkit.getScoreboardManager();
     Scoreboard emptyBord = manager.getNewScoreboard();
@@ -316,9 +324,14 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
         0 , 60 , 0);
 
     //ブロックの復元
-    replacedBlocksList.forEach(data ->
-        data.getOriginalState().update(true,false));
-    replacedBlocksList.clear();
+    gameSession.getReplacedBlocksList().forEach(data -> {
+      Location location = data.getBlock().getLocation();
+      location.getWorld().getNearbyEntities(location, 0.5, 0.5, 0.5).stream()
+          .filter(entity -> entity instanceof Item)
+          .forEach(Entity::remove);
+      data.getOriginalState().update(true, false);
+    });
+    gameSession.getReplacedBlocksList().clear();
 
     playerScoreData.insert(
         new PlayerScore(nowExecutingPlayer.getPlayerName(), nowExecutingPlayer.getScore()
