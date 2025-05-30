@@ -2,6 +2,7 @@ package plugin.treasureHunter.command;
 
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -12,6 +13,7 @@ import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -255,9 +257,11 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
   }
 
   /**
-   * 同じ鉱石を連続で破壊した場合、コンボボーナスを加算します。
-   * @param player 鉱石を破壊したプレイヤー
-   * @param block 鉱石
+   *プレイヤーの破壊したブロックの種類を記録し、コンボ状態を更新します。
+   * 直前と同じ種類の鉱石であればコンボ数を増加させ、異なる場合はリセットされます。
+   * @param player ブロックを破壊したプレイヤー
+   * @param block プレイヤーが破壊したブロック
+   * @return 更新後のGameData
    */
   private GameData getGameData(Player player, Block block) {
     GameData data = playerGameDataMap.get(player.getName());
@@ -278,7 +282,6 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
    * @param player コマンドを実行したプレイヤー
    * @return ブロックの出現場所
    */
-
   private Location getOreLocation(Player player) {
     Location playerLocation = player.getLocation();
     int randomX = new SplittableRandom().nextInt(15) -5;
@@ -293,11 +296,16 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
     Block targetBlock = targetLocation.getBlock();
     Block below = player.getWorld().getBlockAt(blockX, blockY, blockZ);
 
-    if (targetBlock.getType() != Material.AIR || below.getType().name().contains("wood")) {
-      return new Location(player.getWorld(), blockX , blockY ,blockZ );
+    boolean hasAirAround = Arrays.stream(BlockFace.values())
+        .filter(blockFace -> blockFace != BlockFace.SELF)
+        .anyMatch(blockFace -> targetBlock.getRelative(blockFace).getType() == Material.AIR);
+    if (!hasAirAround || targetBlock.getType().name().toLowerCase().contains("wood")) {
+      return player.getLocation();
     }
     return targetLocation;
   }
+
+
 
   /**
    * 難易度によってランダムで鉱石を抽選し、その結果の鉱石を取得します。
