@@ -28,14 +28,14 @@ import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.ScoreboardManager;
 import plugin.treasureHunter.Main;
 import plugin.treasureHunter.PlayerScoreData;
-import plugin.treasureHunter.data.GameData;
+import plugin.treasureHunter.data.GameSession;
 import plugin.treasureHunter.data.GameDifficulty;
 import plugin.treasureHunter.data.ExecutingPlayer;
 import plugin.treasureHunter.data.ReplacedBlocksData;
 import plugin.treasureHunter.data.mapper.data.PlayerScore;
 
 /**
- * 制限時間内にランダムで出現する鉱石ブロックを破壊して、スコア情報を獲得するゲームを起動するコマンドです。スコアは鉱石の種類によって変わり、破壊した鉱石の数によってスコアが変動します。
+ * 制限時間内にランダムで出現する鉱石ブロックを破壊して、スコアを競うゲームを起動するコマンドです。鉱石の種類によって変わり、破壊した鉱石の数によってスコアが変動します。
  * 結果はプレイヤー名、点数、日時などで保存されます。
  */
 
@@ -50,14 +50,11 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
   public TreasureHunterCommand(Main main) {
     this.main = main;
   }
-
   @Getter
-  private final Map<String, GameData>  playerGameDataMap = new HashMap<>();
+  private final Map<String, GameSession>  playerGameDataMap = new HashMap<>();
 
   @Override
   public boolean onExecutePlayerCommand(Player player, Command command, String label, String[] args) {
-
-
     if (args.length == 1 && LIST.equals(args[0])){
       sendPlayerScoreList(player);
       return false;
@@ -67,10 +64,11 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
      player.sendMessage(ChatColor.RED + "実行できません。難易度の指定をしてください。[ easy / normal / hard ]");
      return false;
    }
-    GameData gameData = playerGameDataMap.computeIfAbsent(player.getName(), k -> new GameData());
-    gameData.setOriginalLocation(player.getLocation());
+    GameSession gameSession = playerGameDataMap.computeIfAbsent(player.getName(), k -> new GameSession());
+    gameSession.setOriginalLocation(player.getLocation());
     initPlayerStatus(player);
-    gamePlay(player, getPlayerScore(player), GameDifficulty.fromDifficultyString(args[0]),gameData);
+    gamePlay(player, getPlayerScore(player), GameDifficulty.fromDifficultyString(args[0]),
+        gameSession);
     return true;
   }
 
@@ -81,10 +79,10 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
 
   @EventHandler
   public void onBlockBreak(BlockBreakEvent e){
-    //ブロックを壊したプレイヤー
     Player player = e.getPlayer();
     Block block = e.getBlock();
 
+    //ブロックが復元リストに存在しない場合は追加のみ
     if (replacedBlocksList.stream()
             .noneMatch(data -> data.getBlock().equals(block))) {
       replacedBlocksList.add(new ReplacedBlocksData(block));
@@ -102,7 +100,7 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
           default -> 0;
         };
 
-          GameData data = getGameData(player, block);
+          GameSession data = getGameData(player, block);
           p.setScore(p.getScore() + point + (data.getComboCount() -1)*2);
           if (data.getComboCount() > 1){
             player.sendMessage(ChatColor.YELLOW + "コンボ! × " + data.getComboCount());
@@ -112,7 +110,7 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
   }
 
   /**
-   *現在登録されているスコアのお一覧をメッセージに送る
+   *データベースに登録されたスコア情報を表示します。
    * @param player プレイヤー
    */
   private void sendPlayerScoreList(Player player) {
@@ -142,7 +140,6 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
           : addNewPlayer(player)).orElse(executingPlayerScore);
     }
     executingPlayerScore.setScore(0);
-
     return executingPlayerScore;
   }
 
@@ -158,25 +155,25 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
   }
 
   /**
-   * ゲームを始める前にプレイヤーの状態を設定する。
-   * 採掘場にテレポートし、体力と空腹値を最大化して、装備はダイアモンドのピッケルになる。
-   *
+   * ゲーム開始前にプレイヤーの初期状態を設定します。
+   * 採掘場にテレポートし、体力と空腹値を最大化、ダイアモンドのピッケルを装備します。
+   *また、ゲーム開始前のアイテムと位置情報を保存します。
    * @param player コマンドを実行したプレイヤー
    */
   private void initPlayerStatus(Player player) {
-    GameData gameData = playerGameDataMap.computeIfAbsent(player.getName(), k -> new GameData());
-    gameData.setOriginalLocation(player.getLocation());
+    GameSession gameSession = playerGameDataMap.computeIfAbsent(player.getName(), k -> new GameSession());
+    gameSession.setOriginalLocation(player.getLocation());
 
     ItemStack originalItem = player.getInventory().getItemInMainHand();
 
     player.setHealth(20);
     player.setFoodLevel(20);
 
-    gameData.setOriginalItem(originalItem.getType() == Material.AIR
+    gameSession.setOriginalItem(originalItem.getType() == Material.AIR
         ? new ItemStack(Material.AIR)
         : originalItem.clone());
 
-    playerGameDataMap.put(player.getName(),gameData);
+    playerGameDataMap.put(player.getName(), gameSession);
     player.getInventory().setItemInMainHand(new ItemStack(Material.DIAMOND_PICKAXE));
 
     player.teleport(new Location(player.getWorld(), -259,11,-190));
@@ -185,44 +182,29 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
   }
 
   /**
-   * ゲームを実行します。
-   * 制限時間内に鉱石を破壊するとスコアが加算されます。時間経過後に合計スコアを表示します。
+   * ゲームを開始します。
+   * 一定間隔で鉱石を出現させ、プレイヤーが破壊することでスコアが加算されます。
+   * 制限時間経過後は、スコアの表示・スコアボードの非表示・ブロックの復元・スコア記録を行います。
    * @param player コマンドを実行したプレイヤー
-   * @param nowExecutingPlayer プレイヤースコア情報
+   * @param nowExecutingPlayer 現在ゲームを実行しているプレイヤー
+   * @param difficulty 難易度
+   * @param gameSession ゲーム進行情報
    */
-  private void gamePlay(Player player, ExecutingPlayer nowExecutingPlayer,GameDifficulty difficulty,GameData gameData) {
+  private void gamePlay(Player player, ExecutingPlayer nowExecutingPlayer,GameDifficulty difficulty,
+      GameSession gameSession) {
     replacedBlocksList.clear();
-    int[] gameTimer = {difficulty.getTimeLimit()};
+    gameSession.startTimer(difficulty.getTimeLimit());
     Bukkit.getScheduler().runTaskTimer(main,Runnable -> {
-      gameTimer[0] -= 5 ;
+      gameSession.reduceTime(5);
       //Runnable.cancelの判断ロジック
-      if (gameTimer[0] <= 0){
+      if (gameSession.getTimeLeft() <= 0){
         Runnable.cancel();
 
-        //スコアボードの非表示
-        ScoreboardManager manager = Bukkit.getScoreboardManager();
-        Scoreboard emptyBord = manager.getNewScoreboard();
-        player.setScoreboard(emptyBord);
+        endGame(player, nowExecutingPlayer, difficulty);
 
-        player.sendTitle("ゲームが終了しました！" , nowExecutingPlayer.getPlayerName() + " 合計は " + nowExecutingPlayer.getScore() + " 点！" ,
-            0 , 60 , 0);
-
-       //ブロックの復元
-        replacedBlocksList.forEach(data ->
-            data.getOriginalState().update(true,false));
-        replacedBlocksList.clear();
-
-        playerScoreData.insert(
-            new PlayerScore(nowExecutingPlayer.getPlayerName(), nowExecutingPlayer.getScore()
-            ,difficulty.getName()));
-
-        //backCommandで元の位置へ
-        player.sendMessage("元の位置に戻りますか？　戻る場合は　/back と入力してください ");
-
-        player.getInventory().setItemInMainHand(gameData.getOriginalItem());
+        player.getInventory().setItemInMainHand(gameSession.getOriginalItem());
         return;
       }
-
       for (int i = 0; i < 3; i++){
         Block spawnOre = player.getWorld().getBlockAt(getOreLocation(player));
         if (replacedBlocksList.stream().noneMatch(data -> data.getBlock().equals(spawnOre))){
@@ -230,26 +212,27 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
         }
         spawnOre.setType(getOre(difficulty));
       }
-      scoreBoard(player, nowExecutingPlayer, gameTimer);
+      scoreBoard(player, nowExecutingPlayer, gameSession);
     },0,5 * 20);
   }
 
+
   /**
-   * スコアボードの表示
-   * @param nowExecutingPlayer 現在実行しているプレイヤーのスコア情報
-   * @param gameTimer ゲームの残り時間
+   * ゲーム中のスコアボードを表示します。
+   * 残り時間と現在のスコアをサイドバーに表示し、プレイヤーに進行状況を示します。
+   * @param player スコアボードを表示する対象プレイヤー
+   * @param nowExecutingPlayer 現在ゲームを実行しているプレイヤー
    */
-  private  void scoreBoard(Player player, ExecutingPlayer nowExecutingPlayer, int[] gameTimer) {
+  private  void scoreBoard(Player player, ExecutingPlayer nowExecutingPlayer, GameSession gameSession) {
     ScoreboardManager manager = Bukkit.getScoreboardManager();
     Scoreboard board = manager.getNewScoreboard();
-
 
     Objective objective = board.registerNewObjective("gameInfo","dummy",ChatColor.GOLD + "鉱石ゲーム");
     objective.setDisplaySlot(DisplaySlot.SIDEBAR);
 
-    Score nowTime = objective.getScore(ChatColor.GREEN + "残り : " + gameTimer[0] + "秒");
+    Score nowTime = objective.getScore(ChatColor.GREEN + "残り : " + gameSession.getTimeLeft()
+        + "秒");
     nowTime.setScore(2);
-
     Score nowScore = objective.getScore(ChatColor.YELLOW + "スコア : " + nowExecutingPlayer.getScore() + "点");
     nowScore.setScore(1);
 
@@ -263,8 +246,8 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
    * @param block プレイヤーが破壊したブロック
    * @return 更新後のGameData
    */
-  private GameData getGameData(Player player, Block block) {
-    GameData data = playerGameDataMap.get(player.getName());
+  private GameSession getGameData(Player player, Block block) {
+    GameSession data = playerGameDataMap.get(player.getName());
     Material brokenType = block.getType();
 
     if (brokenType.equals(data.getLastBlockOre())){
@@ -277,10 +260,10 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
   }
 
   /**
-   * 鉱石の出現場所を取得します。
-   *
-   * @param player コマンドを実行したプレイヤー
-   * @return ブロックの出現場所
+   * プレイヤーの周囲にランダムな鉱石出現位置を計算して返します。
+   * 木材ブロックや、空気ブロックのみの場所は除外されます。
+   * @param player 出現位置の基準となるプレイヤー
+   * @return 出現位置
    */
   private Location getOreLocation(Player player) {
     Location playerLocation = player.getLocation();
@@ -294,7 +277,6 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
 
     Location targetLocation = new Location(player.getWorld(),blockX,blockY,blockZ);
     Block targetBlock = targetLocation.getBlock();
-    Block below = player.getWorld().getBlockAt(blockX, blockY, blockZ);
 
     boolean hasAirAround = Arrays.stream(BlockFace.values())
         .filter(blockFace -> blockFace != BlockFace.SELF)
@@ -305,16 +287,45 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
     return targetLocation;
   }
 
-
-
   /**
-   * 難易度によってランダムで鉱石を抽選し、その結果の鉱石を取得します。
+   * 措定された難易度によって鉱石リストからランダムで鉱石を抽選し、その結果の鉱石を取得します。
    * @param difficulty 難易度
    * @return 鉱石
    */
   private Material getOre(GameDifficulty difficulty) {
    List<Material>ores = difficulty.getOreList();
     return ores.get(new SplittableRandom().nextInt(ores.size()));
+  }
+
+  /**
+   * ゲーム終了時の処理を実行します。
+   * スコアボードの非表示・復元対象ブロックの復元・スコアの保存・アイテムの復元
+   * プレイヤーへ、ゲーム終了の案内メッセージの表示を行います。
+   * @param player コマンドを実行したプレイヤー
+   * @param nowExecutingPlayer  ゲームを実行していたプレイヤー
+   * @param difficulty 難易度
+   */
+  private void endGame(Player player, ExecutingPlayer nowExecutingPlayer,
+      GameDifficulty difficulty) {
+    //スコアボードの非表示
+    ScoreboardManager manager = Bukkit.getScoreboardManager();
+    Scoreboard emptyBord = manager.getNewScoreboard();
+    player.setScoreboard(emptyBord);
+
+    player.sendTitle("ゲームが終了しました！" , nowExecutingPlayer.getPlayerName() + " 合計は " + nowExecutingPlayer.getScore() + " 点！" ,
+        0 , 60 , 0);
+
+    //ブロックの復元
+    replacedBlocksList.forEach(data ->
+        data.getOriginalState().update(true,false));
+    replacedBlocksList.clear();
+
+    playerScoreData.insert(
+        new PlayerScore(nowExecutingPlayer.getPlayerName(), nowExecutingPlayer.getScore()
+            , difficulty.getName()));
+
+    //backCommandで元の位置へ
+    player.sendMessage("元の位置に戻りますか？　戻る場合は　/back と入力してください ");
   }
 
 }

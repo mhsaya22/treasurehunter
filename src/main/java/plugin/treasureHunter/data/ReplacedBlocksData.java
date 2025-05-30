@@ -6,7 +6,8 @@ import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 
 /**
- * ゲーム開始前の鉱石の情報を扱うオブジェクト。
+ * ゲーム中に置き換えられたブロックの元の情報を保持するデータクラスです。
+ * 位置と状態を保存し、ゲーム終了後に復元されます。
  */
 
 @Getter

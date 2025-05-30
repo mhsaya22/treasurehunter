@@ -5,11 +5,13 @@ import lombok.Getter;
 import lombok.Setter;
 import org.bukkit.Material;
 
+/**
+ * 難易度設定を管理するデータクラスです。
+ */
 @Setter
 @Getter
 
 public class GameDifficulty {
-
 
   public static final String EASY = "easy";
   public static final String NORMAL = "normal";
