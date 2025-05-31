@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.SplittableRandom;
 import lombok.Getter;
 import org.bukkit.Bukkit;
@@ -46,7 +47,6 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
   private final PlayerScoreData playerScoreData = new PlayerScoreData();
   private final Main main;
   private final List<ExecutingPlayer> executingPlayerList = new ArrayList<>();
-  private final List<ReplacedBlocksData> replacedBlocksList = new ArrayList<>();
   private static final String LIST = "list";
 
   public TreasureHunterCommand(Main main) {
@@ -83,14 +83,17 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
   public void onBlockBreak(BlockBreakEvent e){
     Player player = e.getPlayer();
     Block block = e.getBlock();
+    GameSession session = getGameData(player,block);
 
-    //ブロックが復元リストに存在しない場合は追加のみ
-    if (replacedBlocksList.stream()
+    e.setDropItems(false);
+    e.setExpToDrop(0);
+
+
+//ブロックが復元リストに存在しない場合は追加のみ
+    if (session.getReplacedBlocksList().stream()
             .noneMatch(data -> data.getBlock().equals(block))) {
-      replacedBlocksList.add(new ReplacedBlocksData(block));
-      return;
+      session.getReplacedBlocksList().add(new ReplacedBlocksData(block));
     }
-
     executingPlayerList.stream()
         .filter(p -> p.getPlayerName().equals(player.getName()))
         .findFirst()
@@ -101,11 +104,12 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
           case EMERALD_ORE -> 80;
           default -> 0;
         };
-
-          GameSession data = getGameData(player, block);
-          p.setScore(p.getScore() + point + (data.getComboCount() -1)*2);
-          if (data.getComboCount() > 1){
-            player.sendMessage(ChatColor.YELLOW + "コンボ! × " + data.getComboCount());
+          if (point == 0){
+            return;
+          }
+          p.setScore(p.getScore() + point + (session.getComboCount() -1)*2);
+          if (session.getComboCount() > 1){
+            player.sendMessage(ChatColor.YELLOW + "コンボ! × " + session.getComboCount());
           }
           player.sendMessage("鉱石を獲得！現在のスコアは" + p.getScore() + "点です！");
         });
@@ -158,7 +162,7 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
 
   /**
    * ゲーム開始前にプレイヤーの初期状態を設定します。
-   * 採掘場にテレポートし、体力と空腹値を最大化、ダイアモンドのピッケルを装備します。
+   * 採掘場にテレポートし、体力と空腹値を最大化、ダイアモンドのピッケルと松明６４個を装備します。
    *また、ゲーム開始前のアイテムと位置情報を保存します。
    * @param player コマンドを実行したプレイヤー
    */
@@ -166,16 +170,16 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
     GameSession gameSession = playerGameDataMap.computeIfAbsent(player.getName(), k -> new GameSession());
     gameSession.setOriginalLocation(player.getLocation());
 
-    ItemStack originalItem = player.getInventory().getItemInMainHand();
+    ItemStack[] originalItem = player.getInventory().getContents();
+    gameSession.setOriginalItem(player.getInventory().getContents().clone());
 
     player.setHealth(20);
     player.setFoodLevel(20);
 
-    gameSession.setOriginalItem(originalItem.getType() == Material.AIR
-        ? new ItemStack(Material.AIR)
-        : originalItem.clone());
+
 
     playerGameDataMap.put(player.getName(), gameSession);
+    player.getInventory().addItem(new ItemStack(Material.TORCH,64));
     player.getInventory().setItemInMainHand(new ItemStack(Material.DIAMOND_PICKAXE));
 
     player.teleport(new Location(player.getWorld(), -259,11,-190));
@@ -194,7 +198,7 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
    */
   private void gamePlay(Player player, ExecutingPlayer nowExecutingPlayer,GameDifficulty difficulty,
       GameSession gameSession) {
-    replacedBlocksList.clear();
+    gameSession.getReplacedBlocksList().clear();
     gameSession.startTimer(difficulty.getTimeLimit());
     Bukkit.getScheduler().runTaskTimer(main,Runnable -> {
       gameSession.reduceTime(5);
@@ -204,7 +208,7 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
 
         endGame(player, nowExecutingPlayer, difficulty,gameSession);
 
-        player.getInventory().setItemInMainHand(gameSession.getOriginalItem());
+        player.getInventory().setContents(gameSession.getOriginalItem());
         return;
       }
       for (int i = 0; i < 3; i++){
@@ -285,10 +289,8 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
       Block groundBlock = targetBlock.getRelative(BlockFace.DOWN);
       Block airBlock = targetBlock.getRelative(BlockFace.UP);
 
-      if (targetBlock.getType().isSolid() && airBlock.getType().isAir()) {
-        return targetLoc;
-      }
-      if (targetBlock.getType().isAir() && groundBlock.getType().isSolid()) {
+      if (targetBlock.getType().isSolid() && airBlock.getType().isAir()
+          || targetBlock.getType().isAir() && groundBlock.getType().isSolid()) {
         return targetLoc;
       }
     }
@@ -315,6 +317,10 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
    */
   private void endGame(Player player, ExecutingPlayer nowExecutingPlayer,
       GameDifficulty difficulty,GameSession gameSession) {
+
+    Location safeLocation = (new Location(player.getWorld(), -259,11,-190));
+    player.teleport(safeLocation);
+
     //スコアボードの非表示
     ScoreboardManager manager = Bukkit.getScoreboardManager();
     Scoreboard emptyBord = manager.getNewScoreboard();

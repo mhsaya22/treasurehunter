@@ -33,13 +33,13 @@ public class GameDifficulty {
     return switch (difficultyName) {
 
       case NORMAL -> new GameDifficulty(NORMAL, 80,
-          List.of(Material.IRON_ORE, Material.GOLD_ORE,Material.LAPIS_ORE, Material.REDSTONE_ORE),0.6);
+          List.of(Material.IRON_ORE, Material.GOLD_ORE,Material.LAPIS_ORE, Material.REDSTONE_ORE),0.3);
 
       case HARD -> new GameDifficulty(HARD, 60,
           List.of(Material.IRON_ORE, Material.GOLD_ORE,Material.LAPIS_ORE, Material.REDSTONE_ORE,Material.DIAMOND_ORE,
-              Material.EMERALD_ORE),0.4);
+              Material.EMERALD_ORE),0.15);
 
-      default -> new GameDifficulty(EASY, 100,List.of(Material.IRON_ORE, Material.GOLD_ORE),0.8);
+      default -> new GameDifficulty(EASY, 100,List.of(Material.IRON_ORE, Material.GOLD_ORE),0.5);
     };
   }
 

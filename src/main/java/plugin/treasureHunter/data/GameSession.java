@@ -21,7 +21,7 @@ public class GameSession {
 
   private Material lastBlockOre = Material.AIR;
   private int comboCount = 0;
-  private ItemStack originalItem;
+  private ItemStack[] originalItem;
   private Location originalLocation;
   private final List<ReplacedBlocksData> replacedBlocksList = new ArrayList<>();
   private int gameTimer;
