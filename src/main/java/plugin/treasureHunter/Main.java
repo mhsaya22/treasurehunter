@@ -4,7 +4,6 @@ package plugin.treasureHunter;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 import plugin.treasureHunter.command.BackCommand;
-import plugin.treasureHunter.command.SpawnBlockCommand;
 import plugin.treasureHunter.command.TreasureHunterCommand;
 
 
@@ -19,9 +18,6 @@ public final class Main extends JavaPlugin {
     BackCommand backCommand = new BackCommand(treasureHunterCommand.getPlayerGameDataMap());
     getCommand("back").setExecutor(backCommand);
 
-    SpawnBlockCommand spawnBlockCommand = new SpawnBlockCommand();
-    Bukkit.getPluginManager().registerEvents(spawnBlockCommand, this);
-    getCommand("spawnBlock").setExecutor(spawnBlockCommand);
   }
 
 }
