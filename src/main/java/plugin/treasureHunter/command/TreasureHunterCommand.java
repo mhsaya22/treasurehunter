@@ -2,11 +2,9 @@ package plugin.treasureHunter.command;
 
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.SplittableRandom;
 import lombok.Getter;
 import org.bukkit.Bukkit;
@@ -99,7 +97,8 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
         .findFirst()
         .ifPresent(p -> {int point = switch (block.getType()) {
           case IRON_ORE -> 1;
-          case GOLD_ORE, LAPIS_ORE, REDSTONE_ORE -> 20;
+          case GOLD_ORE -> 10;
+          case LAPIS_ORE, REDSTONE_ORE -> 20;
           case DIAMOND_ORE -> 50;
           case EMERALD_ORE -> 80;
           default -> 0;
@@ -170,13 +169,10 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
     GameSession gameSession = playerGameDataMap.computeIfAbsent(player.getName(), k -> new GameSession());
     gameSession.setOriginalLocation(player.getLocation());
 
-    ItemStack[] originalItem = player.getInventory().getContents();
     gameSession.setOriginalItem(player.getInventory().getContents().clone());
 
     player.setHealth(20);
     player.setFoodLevel(20);
-
-
 
     playerGameDataMap.put(player.getName(), gameSession);
     player.getInventory().addItem(new ItemStack(Material.TORCH,64));
@@ -222,7 +218,6 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
     },0,5 * 20);
   }
 
-
   /**
    * ゲーム中のスコアボードを表示します。
    * 残り時間と現在のスコアをサイドバーに表示し、プレイヤーに進行状況を示します。
@@ -241,7 +236,6 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
     nowTime.setScore(2);
     Score nowScore = objective.getScore(ChatColor.YELLOW + "スコア : " + nowExecutingPlayer.getScore() + "点");
     nowScore.setScore(1);
-
     player.setScoreboard(board);
   }
 
@@ -315,9 +309,7 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
    * @param nowExecutingPlayer  ゲームを実行していたプレイヤー
    * @param difficulty 難易度
    */
-  private void endGame(Player player, ExecutingPlayer nowExecutingPlayer,
-      GameDifficulty difficulty,GameSession gameSession) {
-
+  private void endGame(Player player, ExecutingPlayer nowExecutingPlayer, GameDifficulty difficulty,GameSession gameSession) {
     Location safeLocation = (new Location(player.getWorld(), -259,11,-190));
     player.teleport(safeLocation);
 
