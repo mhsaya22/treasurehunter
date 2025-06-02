@@ -168,15 +168,16 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
   private void initPlayerStatus(Player player) {
     GameSession gameSession = playerGameDataMap.computeIfAbsent(player.getName(), k -> new GameSession());
     gameSession.setOriginalLocation(player.getLocation());
-
     gameSession.setOriginalItem(player.getInventory().getContents().clone());
+
+    player.getInventory().clear();
+    player.getInventory().addItem(new ItemStack(Material.TORCH,64));
+    player.getInventory().setItemInMainHand(new ItemStack(Material.DIAMOND_PICKAXE));
 
     player.setHealth(20);
     player.setFoodLevel(20);
 
     playerGameDataMap.put(player.getName(), gameSession);
-    player.getInventory().addItem(new ItemStack(Material.TORCH,64));
-    player.getInventory().setItemInMainHand(new ItemStack(Material.DIAMOND_PICKAXE));
 
     player.teleport(new Location(player.getWorld(), -259,11,-190));
     player.sendTitle(
@@ -292,7 +293,7 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
   }
 
   /**
-   * 措定された難易度によって鉱石リストからランダムで鉱石を抽選し、その結果の鉱石を取得します。
+   * 指定された難易度によって鉱石リストからランダムで鉱石を抽選し、その結果の鉱石を取得します。
    * @param difficulty 難易度
    * @return 鉱石
    */

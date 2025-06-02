@@ -38,8 +38,8 @@ public class BackCommand extends BaseCommand implements CommandExecutor {
    */
   private void backLocation(Player player) {
     GameSession data = playerGameDataMap.get(player.getName());
-    if (Objects.isNull(data)){
-      return;
+    if (data == null){
+      player.sendMessage(ChatColor.RED + "元の位置が見つかりませんでした。");
     }
     Location location = data.getOriginalLocation();
     player.teleport(location);
