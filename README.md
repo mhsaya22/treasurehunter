@@ -39,8 +39,8 @@ Minecraftサーバ上で動作する、約2分間のスコアアタック型ミ�
 
 ## * プレイ動画 *
 
-[![プレイを見る](![image](https://github.com/user-attachments/assets/93848f49-a16d-43ec-8c27-691cc4b829f6)
-)](https://youtu.be/bx4i7YIDfPw)
+[![プレイを見る](https://github.com/user-attachments/assets/93848f49-a16d-43ec-8c27-691cc4b829f6)
+](https://youtu.be/bx4i7YIDfPw)
 
 ----
 
