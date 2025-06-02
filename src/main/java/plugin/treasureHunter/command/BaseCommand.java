@@ -24,14 +24,14 @@ public abstract class BaseCommand implements CommandExecutor {
   /**
    * コマンド実行者がプレイヤーだった場合に実行します。
    * @param player　コマンドを実行したプレイヤー
-   * @return　処理の実行有無
+   * @return 処理の実行有無
    */
   public abstract boolean onExecutePlayerCommand(Player player,Command command, String label, String[] args);
 
   /**
    * コマンド実行者がプレイヤー以外だった場合に実行します
    * @param sender　コマンド実行者
-   * @return　処理の実行有無
+   * @return 処理の実行有無
    */
   public abstract boolean onExecuteNPCPlayerCommand(CommandSender sender,Command command, String label, String[] args);
 }
