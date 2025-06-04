@@ -46,6 +46,8 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
   private final Main main;
   private final List<ExecutingPlayer> executingPlayerList = new ArrayList<>();
   private static final String LIST = "list";
+  private static final double MAX_HEALTH = 20.0;
+  private static final int MAX_FOOD_LEVEL = 20;
 
   public TreasureHunterCommand(Main main) {
     this.main = main;
@@ -160,8 +162,8 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
   }
 
   /**
-   * ゲーム開始前にプレイヤーの初期状態を設定します。
-   * 採掘場にテレポートし、体力と空腹値を最大化、ダイアモンドのピッケルと松明６４個を装備します。
+   *ゲーム開始前にプレイヤーの初期状態を設定します。
+   *採掘場にテレポートし、体力と空腹値を最大化、ダイアモンドのピッケルと松明64個を装備します。
    *また、ゲーム開始前のアイテムと位置情報を保存します。
    * @param player コマンドを実行したプレイヤー
    */
@@ -174,8 +176,8 @@ public class TreasureHunterCommand extends BaseCommand implements Listener {
     player.getInventory().addItem(new ItemStack(Material.TORCH,64));
     player.getInventory().setItemInMainHand(new ItemStack(Material.DIAMOND_PICKAXE));
 
-    player.setHealth(20);
-    player.setFoodLevel(20);
+    player.setHealth(MAX_HEALTH);
+    player.setFoodLevel(MAX_FOOD_LEVEL);
 
     playerGameDataMap.put(player.getName(), gameSession);
 
