@@ -38,9 +38,14 @@ Minecraftサーバ上で動作する、約2分間のスコアアタック型ミ�
 ----
 
 ## * プレイ動画 *
+![プレイ動画1](https://github.com/user-attachments/assets/a56fe31e-cd9c-4a1a-928d-4f0496ef1540)
 
+----
+![プレイ動画2‐ Clipchampで作成](https://github.com/user-attachments/assets/b430cf92-8ae9-4817-b2ba-364548fefafd)
 
-[プレイ動画1.mp4](../../../OneDrive/%E3%83%87%E3%82%B9%E3%82%AF%E3%83%88%E3%83%83%E3%83%97/%E3%83%97%E3%83%AC%E3%82%A4%E5%8B%95%E7%94%BB1.mp4)
+----
+![プレイ動画3 ‐ Clipchampで作成](https://github.com/user-attachments/assets/5a227f9c-6967-409e-a674-ba4864c2fde9)
+
 
 ----
 
